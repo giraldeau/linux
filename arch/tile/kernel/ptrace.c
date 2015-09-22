@@ -23,6 +23,7 @@
 #include <linux/elf.h>
 #include <linux/tracehook.h>
 #include <linux/context_tracking.h>
+#include <linux/isolation.h>
 #include <asm/traps.h>
 #include <arch/chip.h>
 
@@ -254,6 +255,12 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 int do_syscall_trace_enter(struct pt_regs *regs)
 {
 	u32 work = ACCESS_ONCE(current_thread_info()->flags);
+
+	/* In isolation mode, we may prevent the syscall from running. */
+	if (work & _TIF_TASK_ISOLATION) {
+		if (task_isolation_syscall(regs->regs[TREG_SYSCALL_NR]) == -1)
+			return -1;
+	}
 
 	if (secure_computing() == -1)
 		return -1;
