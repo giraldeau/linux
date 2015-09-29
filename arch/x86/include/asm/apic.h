@@ -3,6 +3,7 @@
 
 #include <linux/cpumask.h>
 #include <linux/pm.h>
+#include <linux/isolation.h>
 
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
@@ -638,6 +639,7 @@ extern void irq_exit(void);
 
 static inline void entering_irq(void)
 {
+	task_isolation_irq(get_irq_regs(), "irq");
 	irq_enter();
 	exit_idle();
 }
@@ -651,6 +653,7 @@ static inline void entering_ack_irq(void)
 static inline void ipi_entering_ack_irq(void)
 {
 	ack_APIC_irq();
+	task_isolation_irq(get_irq_regs(), "ack irq");
 	irq_enter();
 }
 
