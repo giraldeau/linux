@@ -269,9 +269,9 @@ static void clocksource_watchdog(unsigned long data)
 	 * Cycle through CPUs to check if the CPUs stay synchronized
 	 * to each other.
 	 */
-	next_cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
+	next_cpu = cpumask_next_and(raw_smp_processor_id(), cpu_online_mask, housekeeping_cpumask());
 	if (next_cpu >= nr_cpu_ids)
-		next_cpu = cpumask_first(cpu_online_mask);
+		next_cpu = cpumask_first_and(cpu_online_mask, housekeeping_cpumask());
 	watchdog_timer.expires += WATCHDOG_INTERVAL;
 	add_timer_on(&watchdog_timer, next_cpu);
 out:
