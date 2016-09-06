@@ -765,7 +765,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 
 #ifdef CONFIG_NO_HZ_FULL
 	/* Limit the tick delta to the maximum scheduler deferment */
-	if (!ts->inidle)
+	if (!ts->inidle && !test_thread_flag(TIF_TASK_ISOLATION))
 		delta = min(delta, scheduler_tick_max_deferment());
 #endif
 
