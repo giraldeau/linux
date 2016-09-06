@@ -3,7 +3,6 @@
 
 #include <linux/cpumask.h>
 #include <linux/pm.h>
-#include <linux/isolation.h>
 
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
@@ -636,6 +635,17 @@ extern int default_check_phys_apicid_present(int phys_apicid);
 #endif /* CONFIG_X86_LOCAL_APIC */
 extern void irq_enter(void);
 extern void irq_exit(void);
+
+/*
+ * Break the include cycle caused by <linux/isolation.h>:
+ * smp.h > apic.h > isolation.h > smp.h
+ *
+ * Because of this cycle, the second smp.h include expands to the empty string
+ * and required symbol definitions for isolation.h are defined after they are
+ * referenced. This cycle is avoided with a local forward declaration.
+ */
+#include <asm/irq_regs.h> // get_irq_regs()
+extern void task_isolation_irq(struct pt_regs *regs, const char *fmt, ...);
 
 static inline void entering_irq(void)
 {
