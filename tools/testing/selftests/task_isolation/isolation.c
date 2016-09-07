@@ -114,7 +114,7 @@ int prctl_safe(int cmd, int arg, int max_retries)
  */
 static int run_test(void (*setup_func)(), int (*test_func)(), int flags)
 {
-	int pid, rc, status, retries = 0;
+	int pid, rc, status;
 
 	fflush(stdout);
 	pid = fork();
@@ -232,23 +232,30 @@ static int do_fault(void)
 /* Make a syscall (and be killed). */
 static int do_syscall(void)
 {
-	write(STDOUT_FILENO, "goodbye, world\n", 13);
+	static const char *msg = "goodbye, world\n";
+
+	assert(write(STDOUT_FILENO, msg, strlen(msg)));
 	return KSFT_FAIL;
 }
 
 /* Turn isolation back off and don't be killed. */
 static int do_syscall_off(void)
 {
+	static const char *msg = "==> hello, world\n";
+
 	prctl(PR_SET_TASK_ISOLATION, 0);
-	write(STDOUT_FILENO, "==> hello, world\n", 17);
+	assert(write(STDOUT_FILENO, msg, strlen(msg)));
 	return KSFT_PASS;
 }
 
 /* If we're not getting a signal, make sure we can do multiple system calls. */
 static int do_syscall_multi(void)
 {
-	write(STDOUT_FILENO, "==> hello, world 1\n", 19);
-	write(STDOUT_FILENO, "==> hello, world 2\n", 19);
+	static const char *msg1 = "==> hello, world 1\n";
+	static const char *msg2 = "==> hello, world 2\n";
+
+	assert(write(STDOUT_FILENO, msg1, strlen(msg1)));
+	assert(write(STDOUT_FILENO, msg2, strlen(msg2)));
 	return KSFT_PASS;
 }
 
@@ -437,7 +444,7 @@ static int do_quiesce(void)
 			printf("timed out at %gs in child migrate loop (%d)\n",
 			       time, *childstate);
 			sprintf(buf, "cat /proc/%d/stack", child_pid);
-			system(buf);
+			assert(system(buf) == 0);
 			goto fail;
 		}
 	}
