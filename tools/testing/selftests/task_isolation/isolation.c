@@ -64,6 +64,7 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define READ_ONCE(x) (*(volatile typeof(x) *)&(x))
 #define WRITE_ONCE(x, val) (*(volatile typeof(x) *)&(x) = (val))
+#define MAX_RETRIES 100
 
 #ifndef PR_SET_TASK_ISOLATION   /* Not in system headers yet? */
 # define PR_SET_TASK_ISOLATION		48
@@ -94,6 +95,16 @@ void set_my_cpu(int cpu)
 	assert(rc == 0);
 }
 
+int prctl_safe(int cmd, int arg, int max_retries)
+{
+	int rc, retries = 0;
+
+	do
+		rc = prctl(cmd, arg);
+	while (rc != 0 && errno == EAGAIN && retries++ < max_retries);
+	return rc;
+}
+
 /*
  * Run a child process in task isolation mode and report its status.
  * The child does mlockall() and moves itself to the task isolation cpu.
@@ -103,7 +114,7 @@ void set_my_cpu(int cpu)
  */
 static int run_test(void (*setup_func)(), int (*test_func)(), int flags)
 {
-	int pid, rc, status;
+	int pid, rc, status, retries = 0;
 
 	fflush(stdout);
 	pid = fork();
@@ -121,9 +132,7 @@ static int run_test(void (*setup_func)(), int (*test_func)(), int flags)
 	if (setup_func)
 		setup_func();
 	if (flags) {
-		do
-			rc = prctl(PR_SET_TASK_ISOLATION, flags);
-		while (rc != 0 && errno == EAGAIN);
+		rc = prctl_safe(PR_SET_TASK_ISOLATION, flags, MAX_RETRIES);
 		if (rc != 0) {
 			printf("couldn't enable isolation (%d): FAIL\n", errno);
 			ksft_exit_fail();
@@ -407,8 +416,8 @@ static int do_quiesce(void)
 	double time;
 	int rc;
 
-	rc = prctl(PR_SET_TASK_ISOLATION,
-		   PR_TASK_ISOLATION_ENABLE | PR_TASK_ISOLATION_NOSIG);
+	rc = prctl_safe(PR_SET_TASK_ISOLATION,
+		   PR_TASK_ISOLATION_ENABLE | PR_TASK_ISOLATION_NOSIG, MAX_RETRIES);
 	if (rc != 0) {
 		prctl(PR_SET_TASK_ISOLATION, 0);
 		printf("prctl failed: rc %d", rc);
@@ -533,12 +542,11 @@ void test_jitter(unsigned long waitticks)
 	rc = mlockall(MCL_CURRENT);
 	assert(rc == 0);
 
-	do
-		rc = prctl(PR_SET_TASK_ISOLATION,
+	rc = prctl_safe(PR_SET_TASK_ISOLATION,
 			   PR_TASK_ISOLATION_ENABLE |
 			   PR_TASK_ISOLATION_USERSIG |
-			   PR_TASK_ISOLATION_SET_SIG(SIGUSR1));
-	while (rc != 0 && errno == EAGAIN);
+			   PR_TASK_ISOLATION_SET_SIG(SIGUSR1),
+			   MAX_RETRIES);
 	if (rc != 0) {
 		printf("couldn't enable isolation (%d): FAIL\n", errno);
 		ksft_exit_fail();
@@ -607,7 +615,7 @@ int main(int argc, char **argv)
 	       task_isolation_cpu);
 
 	/* Test to see if with no mask set, we fail. */
-	if (prctl(PR_SET_TASK_ISOLATION, PR_TASK_ISOLATION_ENABLE) == 0 ||
+	if (prctl_safe(PR_SET_TASK_ISOLATION, PR_TASK_ISOLATION_ENABLE, MAX_RETRIES) == 0 ||
 	    errno != EINVAL) {
 		printf("prctl unaffinitized: FAIL\n");
 		exit_status = KSFT_FAIL;
@@ -617,7 +625,7 @@ int main(int argc, char **argv)
 
 	/* Or if affinitized to the wrong cpu. */
 	set_my_cpu(0);
-	if (prctl(PR_SET_TASK_ISOLATION, PR_TASK_ISOLATION_ENABLE) == 0 ||
+	if (prctl_safe(PR_SET_TASK_ISOLATION, PR_TASK_ISOLATION_ENABLE, MAX_RETRIES) == 0 ||
 	    errno != EINVAL) {
 		printf("prctl on cpu 0: FAIL\n");
 		exit_status = KSFT_FAIL;
