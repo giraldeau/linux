@@ -36,7 +36,8 @@ ret_fast_syscall:
  UNWIND(.cantunwind	)
 	disable_irq_notrace			@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
-	tst	r1, #_TIF_SYSCALL_WORK | _TIF_WORK_MASK
+	ldr	r2, =_TIF_SYSCALL_WORK | _TIF_WORK_MASK
+	tst	r1, r2
 	bne	fast_work_pending
 
 	/* perform architecture specific actions before user return */
@@ -62,7 +63,8 @@ ret_fast_syscall:
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
 	disable_irq_notrace			@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
-	tst	r1, #_TIF_SYSCALL_WORK | _TIF_WORK_MASK
+	ldr	r2, =_TIF_SYSCALL_WORK | _TIF_WORK_MASK
+	tst	r1, r2
 	beq	no_work_pending
  UNWIND(.fnend		)
 ENDPROC(ret_fast_syscall)
@@ -70,7 +72,8 @@ ENDPROC(ret_fast_syscall)
 	/* Slower path - fall through to work_pending */
 #endif
 
-	tst	r1, #_TIF_SYSCALL_WORK
+	ldr	r2, =_TIF_SYSCALL_WORK
+	tst	r1, r2
 	bne	__sys_trace_return_nosave
 slow_work_pending:
 	mov	r0, sp				@ 'regs'
@@ -94,7 +97,8 @@ ret_slow_syscall:
 	disable_irq_notrace			@ disable interrupts
 ENTRY(ret_to_user_from_irq)
 	ldr	r1, [tsk, #TI_FLAGS]
-	tst	r1, #_TIF_WORK_MASK
+	ldr	r2, =_TIF_WORK_MASK
+	tst	r1, r2
 	bne	slow_work_pending
 no_work_pending:
 	asm_trace_hardirqs_on save = 0
@@ -220,7 +224,8 @@ local_restart:
 	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
 
-	tst	r10, #_TIF_SYSCALL_WORK		@ are we tracing syscalls?
+	ldr	r11, =_TIF_SYSCALL_WORK		@ are we tracing syscalls?
+	tst	r10, r11
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit

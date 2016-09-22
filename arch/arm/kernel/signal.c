@@ -14,6 +14,7 @@
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
 #include <linux/uprobes.h>
+#include <linux/isolation.h>
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
@@ -595,9 +596,18 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
 			}
+
+			if (thread_flags & _TIF_TASK_ISOLATION)
+				task_isolation_prepare();
 		}
 		local_irq_disable();
-		thread_flags = current_thread_info()->flags;
+		thread_flags = READ_ONCE(current_thread_info()->flags);
+
+		/* Clear task isolation from cached_flags manually. */
+		if ((thread_flags & _TIF_TASK_ISOLATION) &&
+		    task_isolation_ready())
+			thread_flags &= ~_TIF_TASK_ISOLATION;
+
 	} while (thread_flags & _TIF_WORK_MASK);
 	return 0;
 }

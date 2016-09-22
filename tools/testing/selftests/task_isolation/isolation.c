@@ -59,6 +59,7 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/prctl.h>
+#include <sys/types.h>
 #include "../kselftest.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -480,7 +481,7 @@ fail:
 #include <arch/spr_def.h>
 #endif
 
-static inline unsigned long get_cycle_count(void)
+static inline u_int64_t get_cycle_count(void)
 {
 #ifdef __x86_64__
 	unsigned int lower, upper;
@@ -494,6 +495,11 @@ static inline unsigned long get_cycle_count(void)
 
 	asm volatile("mrs %0, cntvct_el0" : "=r" (vtick));
 	return vtick;
+#elif defined(__arm__)
+	u_int64_t cval;
+
+	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
+	return cval;
 #else
 #error Unsupported architecture
 #endif
@@ -542,7 +548,7 @@ void jitter_handler(int sig)
 
 void test_jitter(unsigned long waitticks)
 {
-	unsigned long start, last, elapsed;
+	u_int64_t start, last, elapsed;
 	int rc;
 
 	printf("testing task isolation jitter for %ld ticks\n", waitticks);
@@ -560,8 +566,8 @@ void test_jitter(unsigned long waitticks)
 
 	last = start = get_cycle_count();
 	do {
-		unsigned long next = get_cycle_count();
-		unsigned long delta = next - last;
+		u_int64_t next = get_cycle_count();
+		u_int64_t delta = next - last;
 
 		elapsed = next - start;
 		if (__builtin_expect(delta > HISTSIZE, 0)) {
