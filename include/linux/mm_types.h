@@ -357,6 +357,11 @@ struct vm_area_struct {
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
 #endif
 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
+
+#ifdef CONFIG_TRACING_EXEC_PAGE
+	unsigned int flowjit_state;
+	// save protection flags?
+#endif
 };
 
 struct core_thread {
@@ -368,6 +373,24 @@ struct core_state {
 	atomic_t nr_threads;
 	struct core_thread dumper;
 	struct completion startup;
+};
+
+/*
+ * A page is in state PROT_READ | PROT_WRITE -> FLOWJIT_NONEs
+ * mprotect(PROT_EXEC) -> FLOWJIT_PENDING
+ * PF_INSTR
+ */
+
+/*
+ * VMA state for intercepting changes to executable pages.
+ *  - FLOWJIT_NONE: this VMA is not tracked
+ *  - FLOWJIT_WRITE: flags (PROT_WRITE | PROT_EXEC) are actually set, but PROT_EXEC is disabled
+ *  If the page is executed
+ */
+enum {
+	FLOWJIT_NONE,
+	FLOWJIT_WRITE,
+	FLOWJIT_EXEC,
 };
 
 enum {

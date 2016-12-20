@@ -68,5 +68,6 @@ obj-$(CONFIG_PROBE_EVENTS) += trace_probe.o
 obj-$(CONFIG_UPROBE_EVENT) += trace_uprobe.o
 
 obj-$(CONFIG_TRACEPOINT_BENCHMARK) += trace_benchmark.o
+obj-$(CONFIG_TRACING_EXEC_PAGE) += trace_flowjit.o
 
 libftrace-y := ftrace.o

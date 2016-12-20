@@ -27,6 +27,8 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
 
+#include <linux/flowjit.h>
+
 /*
  * Page fault error code bits:
  *
@@ -1343,6 +1345,13 @@ retry:
 	 */
 good_area:
 	if (unlikely(access_error(error_code, vma))) {
+		/* Did we track this process? Let's restore EXEC bits then */
+		if (flowjit_enabled())
+		{
+			flowjit_disarm(vma);
+			flowjit_build_event(vma);
+			goto go_ahead;
+		}
 		bad_area_access_error(regs, error_code, address, vma);
 		return;
 	}
@@ -1353,6 +1362,7 @@ good_area:
 	 * the fault.  Since we never set FAULT_FLAG_RETRY_NOWAIT, if
 	 * we get VM_FAULT_RETRY back, the mmap_sem has been unlocked.
 	 */
+go_ahead:
 	fault = handle_mm_fault(mm, vma, address, flags);
 	major |= fault & VM_FAULT_MAJOR;
 

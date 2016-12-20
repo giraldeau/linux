@@ -1918,6 +1918,12 @@ struct task_struct {
 #ifdef CONFIG_MMU
 	struct task_struct *oom_reaper_list;
 #endif
+#ifdef CONFIG_TRACING_EXEC_PAGE
+	unsigned int flowjit_trace;
+#endif
+
+
+
 /* CPU-specific state of this task */
 	struct thread_struct thread;
 /*

@@ -31,6 +31,8 @@
 #include <asm/tlbflush.h>
 
 #include "internal.h"
+#include <linux/flowjit.h>
+
 
 /*
  * For a prot_numa update we only hold mmap_sem for read so there is a
@@ -433,6 +435,15 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 		tmp = vma->vm_end;
 		if (tmp > end)
 			tmp = end;
+
+		/* Are we tracking this process' executable pages?
+		 * Yes? So, lets flip the EXEC bits for VMA */
+		if (flowjit_enabled())
+		{
+			//printk("Flowjit was enabled for me! %s\n", current->comm);
+			newflags = flowjit_arm(newflags);
+		}
+
 		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags);
 		if (error)
 			goto out;

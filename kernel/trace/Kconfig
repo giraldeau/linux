@@ -670,5 +670,12 @@ config TRACING_EVENTS_GPIO
 
 endif # FTRACE
 
+config TRACING_EXEC_PAGE
+	bool "Trace executable page modifications"
+	default y
+	help
+		Enable tracing executable pages. This feature is useful for offline
+		decoding hardware traces for JIT and self-modifying code.
+
 endif # TRACING_SUPPORT
 
